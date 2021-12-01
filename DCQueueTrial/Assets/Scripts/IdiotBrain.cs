@@ -1,4 +1,4 @@
-﻿using System.Collections;
+ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -9,6 +9,8 @@ public class IdiotBrain : MonoBehaviour, IBrain
     private bool expired;
     private bool destinationReached;
     private bool emotePlayed;
+    private bool queued;
+
     public void OnTapped(){
         tapped = true;
     }
@@ -25,15 +27,20 @@ public class IdiotBrain : MonoBehaviour, IBrain
         emotePlayed = true;
     }
 
+
+
     Mutex mutex;
+    Server server;
     // Start is called before the first frame update
     void Start()
     {
         mutex = GameObject.FindObjectOfType<Mutex>();
+        server = GameObject.FindObjectOfType<Server>();
         StartCoroutine(Idle());
     }
 
     IEnumerator Idle() {
+        queued = false;
         tapped = false;
         expired = false;
         served = false;
@@ -45,36 +52,48 @@ public class IdiotBrain : MonoBehaviour, IBrain
     }
 
     IEnumerator WaitForServerLock() {
+        queued = false;
         tapped = false;
         expired = false;
         served = false;
         destinationReached = false;
-        IEnumerator mutexLock = mutex.Lock(this);
+        StartCoroutine(GoToServer());
         while(true){
-            if(!mutexLock.MoveNext()) {
-                StartCoroutine(GoToServer());
-                yield break;
-            } else if(tapped) {
-                StartCoroutine(GoToBase());
-                yield break;
-            }
+            if(server.clientsQueue.Peek() == this.GetComponent<Client>()) {
+                IEnumerator mutexLock = mutex.Lock(this);
+                if(!mutexLock.MoveNext()) {
+                    yield break;
+                }
+            } 
             yield return null;
         }
     }
 
+    float offset = 1f;
+
+    public void MakeStepInQueue() {
+                StartCoroutine(MakeStep());
+    }
+
+    IEnumerator MakeStep() {
+        while(!queued) {
+            yield return null;
+        }
+        GetComponent<Legs>().GoTo(transform.position + Vector3.left*offset);
+    }
+
+
     IEnumerator GoToServer() {
+        queued = false;
         tapped = false;
         expired = false;
         served = false;
         destinationReached = false;
-        GetComponent<Legs>().GoTo(mutex.transform.position);
+        GetComponent<Legs>().GoTo(mutex.transform.position + Vector3.right*offset*server.clientsQueue.Count);
+        server.clientsQueue.Enqueue(GetComponent<Client>());
         while(true) {
             if(destinationReached) {
                 StartCoroutine(WaitForServed());
-                yield break;
-            } else if(tapped) {
-                StartCoroutine(GoToBase());
-                mutex.Unlock(this);
                 yield break;
             }
             yield return null;
@@ -82,14 +101,13 @@ public class IdiotBrain : MonoBehaviour, IBrain
     }
 
     IEnumerator WaitForServed() {
+        queued = true;
         tapped = false;
         expired = false;
         served = false;
         destinationReached = false;
         GetComponent<Client>().OrderStuff();
-        Server server = GameObject.FindObjectOfType<Server>();
-        server.currentClient = GetComponent<Client>();
-        while(true) {
+        while(true) {   
             if(served) {
                 StartCoroutine(PlayEmote());
                 server.currentClient = null;
@@ -99,8 +117,6 @@ public class IdiotBrain : MonoBehaviour, IBrain
                 mutex.Unlock(this);
                 server.currentClient = null;
                 yield break;
-            } else if(tapped) {
-                GetComponent<Client>().ExpireNow();
             }
             yield return null;
         }
@@ -109,26 +125,24 @@ public class IdiotBrain : MonoBehaviour, IBrain
     IEnumerator PlayEmote() {
         emotePlayed = false;
         GetComponent<Animator>().SetTrigger("Happy");
+        mutex.Unlock(this);
         while(!emotePlayed) {
             yield return null;
         }
-        mutex.Unlock(this);
         StartCoroutine(GoToBase());
     }
 
     IEnumerator GoToBase() {
+        queued = false;
         tapped = false;
         expired = false;
         served = false;
         destinationReached = false;
         GetComponent<Legs>().GoTo(GetComponent<Client>().home.transform.position);
+        server.AdvanceTheQueue();                   
         while(true) {
             if(destinationReached) {
                 StartCoroutine(Idle());
-                yield break;
-            } else if(tapped) {
-                GetComponent<Legs>().Stop();
-                StartCoroutine(WaitForServerLock());
                 yield break;
             }
             yield return null;

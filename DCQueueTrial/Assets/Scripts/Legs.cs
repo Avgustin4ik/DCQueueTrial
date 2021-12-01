@@ -1,4 +1,4 @@
-﻿using System.Collections;
+﻿ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
@@ -20,6 +20,8 @@ public class Legs : MonoBehaviour
         agent.speed = GetComponent<Client>()?.speed ?? agent.speed;
         walk = StartCoroutine(WalkRoutine());
     }
+
+    // void SetSpeed(float value) => animator.SetFloat("Speed", value); возможно смысла не много вводить лямбда фунцкцию ради трех строчек
 
     private IEnumerator WalkRoutine()
     {

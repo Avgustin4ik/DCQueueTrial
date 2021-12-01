@@ -48,6 +48,11 @@ public class Client : MonoBehaviour, IPointerDownHandler
         }
         GetComponent<IBrain>().OnServed();
     }
+
+    public void MakeStepInQueue() {
+        GetComponent<IBrain>().MakeStepInQueue();
+    }
+
     public void ExpireNow() {
         t = 0;
     }
