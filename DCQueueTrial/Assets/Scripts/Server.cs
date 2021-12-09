@@ -4,12 +4,22 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 
 public class Server : MonoBehaviour, IPointerDownHandler
-{
-    public Client currentClient;
-    public void OnPointerDown(PointerEventData pointerEventData)
-    {
-        if(currentClient) {
-            currentClient.Serve();
+{    
+
+    public ClientsQueue queue = new ClientsQueue();
+    private Client currentClient;
+    
+    public Client CurrentClient{
+        get{
+            return queue.Peek();
         }
     }
+
+    public void OnPointerDown(PointerEventData pointerEventData)
+    {
+        if(CurrentClient) {
+            CurrentClient.Serve();
+        }   
+    }
+
 }

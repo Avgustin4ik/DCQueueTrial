@@ -5,4 +5,6 @@
     void OnExpired();
     void OnDestinationReached();
     void OnEmotePlayed();
+
+    void MakeStepInQueue();
 }
